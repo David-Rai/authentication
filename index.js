@@ -6,7 +6,8 @@ const path = require("path")
 const PORT = 1111;
 require("dotenv").config()
 const db = require("./models/db.js")
-const jwt=require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+const { CLIENT_RENEG_LIMIT } = require('tls');
 
 //middlewares
 app.use(cookieParser())
@@ -22,35 +23,48 @@ app.set("views", path.resolve("views"))
 //home page registration
 app.get('/', (req, res) => {
 
-  res.render("register")
+  res.render("home")
 });
 
 //registration route
 app.post('/register', (req, res) => {
-  const { email, password } = req.body;
-
-const token=jwt.sign({email},"secret")
-res.cookie("token",token)
-console.log(token)
+  const { name, email, password } = req.body;
 
   //hashing the password
   bcrypt.genSalt(10, function (err, salt) {
     bcrypt.hash(password, salt, async function (err, hash) {
       // Store hash in your password DB.
-      const query = "insert into users (email,password) values (?,?)"
-      const results = await db.execute(query, [email, hash])
-    });
-  });
+      const query = "insert into users (name,email,password) values (?,?,?)"
+      const results = await db.execute(query, [name, email, hash])
+    })
+  })
 
-
-  res.render("register")
+  res.redirect("/login")
 })
 
-//get cookie
-app.get('/read',(req,res)=>{
-const token=req.cookies.token
-const data=jwt.verify(token,"secret")
-res.json({token,data})
+//login route
+app.get('/login', (req, res) => {
+  res.render("login")
+})
+
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body
+  const query = "select * from users where email=?"
+  const [r] = await db.execute(query, [email])
+
+  if(r.length ===0){
+    res.status(404).json({ message: "something is wrong " ,status:404})
+
+  }
+
+  bcrypt.compare(password, r[0].password, (err, result) => {
+    if (!result) {
+      res.status(404).json({ message: "something is wrong " })
+    }
+  })
+
+  res.send(`you are login ${r[0].name}`)
+
 })
 
 app.listen(PORT, () => {

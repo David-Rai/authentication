@@ -7,7 +7,7 @@ const PORT = 1111;
 require("dotenv").config()
 const db = require("./models/db.js")
 const jwt = require("jsonwebtoken");
-const { CLIENT_RENEG_LIMIT } = require('tls');
+const auth = require("./middlewares/auth.js")
 
 //middlewares
 app.use(cookieParser())
@@ -20,9 +20,11 @@ app.set('view engine', "ejs")
 app.set("views", path.resolve("views"))
 
 
+//authentication middlewares
+// app.use(auth)
+
 //home page registration
 app.get('/', (req, res) => {
-
   res.render("home")
 });
 
@@ -47,13 +49,14 @@ app.get('/login', (req, res) => {
   res.render("login")
 })
 
+//main logining logic
 app.post("/login", async (req, res) => {
   const { email, password } = req.body
   const query = "select * from users where email=?"
   const [r] = await db.execute(query, [email])
 
-  if(r.length ===0){
-    res.status(404).json({ message: "something is wrong " ,status:404})
+  if (r.length === 0) {
+    res.status(404).json({ message: "something is wrong ", status: 404 })
 
   }
 
@@ -63,11 +66,35 @@ app.post("/login", async (req, res) => {
     }
   })
 
-  res.send(`you are login ${r[0].name}`)
+  //creating the token to authenticate users again
+  const secretCode = process.env.SECRET
+  const token = jwt.sign({ name: r[0].name, email: r[0].email }, secretCode)
+  res.cookie("token", token)
+
+  // res.send(`you are login ${r[0].name}`)
+  res.redirect('/dash')
 
 })
 
+//dashboard
+app.get('/dash', auth, (req, res) => {
+  const data = req.user
+
+  if (!data) res.render("home")
+
+  res.render("dash", { data })
+})
+
+//logging out feature
+app.post("/log", (req, res) => {
+res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "Strict",  // Protect from CSRF
+  });
+
+  res.render("home")
+
+})
 app.listen(PORT, () => {
   console.log(`Server running on port PORT`);
 });
-

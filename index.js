@@ -30,13 +30,13 @@ app.post(
   [
     body("name").notEmpty().withMessage("name is required"),
     body("email").notEmpty().isEmail().withMessage("email is required"),
-    body("password").notEmpty().withMessage("password is required")
+    body("password").notEmpty().withMessage("password is required"),
   ],
   (req, res) => {
     //data authtentication
     const results = validationResult(req);
 
-    if(!results.isEmpty()){
+    if (!results.isEmpty()) {
       return res.json({ status: 400, message: results.errors });
     }
 
@@ -65,35 +65,41 @@ app.post("/login", async (req, res) => {
   const [r] = await db.execute(query, [email]);
 
   if (r.length === 0) {
-    res.status(404).json({ message: "something is wrong ", status: 404 });
+    return res
+      .status(404)
+      .json({ message: "no such user is found ", status: 404 });
   }
 
   bcrypt.compare(password, r[0].password, (err, result) => {
-    if (!result) {
-    return  res.status(404).json({ message: "something is wrong " });
+    if (result) {
+      //creating the token to authenticate users again
+      const secretCode = process.env.SECRET;
+      const token = jwt.sign(
+        { name: r[0].name, email: r[0].email },
+        secretCode
+      );
+
+      res.cookie("token", token, {
+        secure: false,
+          httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+      });
+
+      return res.redirect("/dash");
     }
+
+    res.status(404).json({ message: "something is wrong " });
   });
-
-  //creating the token to authenticate users again
-  const secretCode = process.env.SECRET;
-  const token = jwt.sign({ name: r[0].name, email: r[0].email }, secretCode);
-
-  res.cookie("token", token, {
-    secure: false,
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
-
-  res.redirect("/dash");
 });
 
 //dashboard
 app.get("/dash", auth, (req, res) => {
   const data = req.user;
 
-  if (!data) {
-    res.redirect("/");
+  // Check if `data` is falsy OR an empty object
+  if (!data || Object.keys(data).length === 0) {
+    return res.redirect("/");
   }
 
   res.render("dash", { data });
@@ -101,12 +107,8 @@ app.get("/dash", auth, (req, res) => {
 
 //logging out feature
 app.post("/log", (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    sameSite: "Strict", // Protect from CSRF
-  });
-
-  res.render("home");
+  res.clearCookie("token");
+  res.redirect("/");
 });
 
 app.listen(PORT, () => {

@@ -1,20 +1,23 @@
-const jwt=require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
 
 const auth = (req, res, next) => {
-  console.log(req.cookies.token)
-    const token = req.cookies.token;
-    
-    if (!token) {
-        res.redirect("/")
-    }
+  const token = req.cookies.token;
 
-    //verifying the token and getting the data
-    const secretCode = process.env.SECRET
-    const data = jwt.verify(token, secretCode)
+  if (!token) {
+    return res.redirect("/");
+  }
 
-    req.user = data
-    next()
+  try {
+    const secretCode = process.env.SECRET;
+    const data = jwt.verify(token, secretCode);
 
-}
+    req.user = data;
+    next();
+  } 
+  catch (err) {
+    console.error("JWT Error:", err.message);
+    return res.redirect("/");
+  }
+};
 
-module.exports=auth
+module.exports = auth;

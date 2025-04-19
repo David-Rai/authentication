@@ -8,6 +8,7 @@ require("dotenv").config()
 const db = require("./models/db.js")
 const jwt = require("jsonwebtoken");
 const auth = require("./middlewares/auth.js")
+const {body,validationResult}=require("express-validator")
 
 //middlewares
 app.use(cookieParser())
@@ -19,27 +20,36 @@ app.use(express.urlencoded({ extended: false }))
 app.set('view engine', "ejs")
 app.set("views", path.resolve("views"))
 
-
-//authentication middlewares
-// app.use(auth)
-
 //home page registration
 app.get('/', (req, res) => {
   res.render("home")
 });
 
 //registration route
-app.post('/register', (req, res) => {
+app.post('/register',[
+  body("name").notEmpty().withMessage("name is required"),
+  body("email").notEmpty().isEmail().withMessage("email is required"),
+  body("password").notEmpty().withMessage("password is required"),
+], (req, res) => {
+
+  //data authtentication
+  const results=validationResult(req)
+if(!results.errors.length == 0){
+  console.log("not valid")
+return    res.json({status:400,message:results.errors})
+}
+
+  // console.log(results.errors.length)
+
   const { name, email, password } = req.body;
 
   //hashing the password
-  bcrypt.genSalt(10, function (err, salt) {
-    bcrypt.hash(password, salt, async function (err, hash) {
+    bcrypt.hash(password, 10, async function (err, hash) {
+       console.log(hash)
       // Store hash in your password DB.
       const query = "insert into users (name,email,password) values (?,?,?)"
       const results = await db.execute(query, [name, email, hash])
     })
-  })
 
   res.redirect("/login")
 })
@@ -69,18 +79,24 @@ app.post("/login", async (req, res) => {
   //creating the token to authenticate users again
   const secretCode = process.env.SECRET
   const token = jwt.sign({ name: r[0].name, email: r[0].email }, secretCode)
-  res.cookie("token", token)
+  res.cookie("token", token,{
+    secure:false,
+    httpOnly:true,
+    maxAge:10000,
+    sameSite:"lax",
+    path:"/"
+  })
 
   // res.send(`you are login ${r[0].name}`)
   res.redirect('/dash')
 
 })
 
-//dashboard
+//dashboard 
 app.get('/dash', auth, (req, res) => {
   const data = req.user
 
-  if (!data) res.render("home")
+  if (!data) {res.redirect("/")}
 
   res.render("dash", { data })
 })
@@ -95,6 +111,7 @@ res.clearCookie("token", {
   res.render("home")
 
 })
+
 app.listen(PORT, () => {
   console.log(`Server running on port PORT`);
 });

@@ -30,17 +30,15 @@ app.post(
   [
     body("name").notEmpty().withMessage("name is required"),
     body("email").notEmpty().isEmail().withMessage("email is required"),
-    body("password").notEmpty().withMessage("password is required"),
+    body("password").notEmpty().withMessage("password is required")
   ],
   (req, res) => {
     //data authtentication
     const results = validationResult(req);
-    if (!results.errors.length == 0) {
-      console.log("not valid");
-    return res.json({ status: 400, message: results.errors });
-    }
 
-    // console.log(results.errors.length)
+    if(!results.isEmpty()){
+      return res.json({ status: 400, message: results.errors });
+    }
 
     const { name, email, password } = req.body;
 
@@ -51,13 +49,12 @@ app.post(
       const results = await db.execute(query, [name, email, hash]);
     });
 
-    res.redirect("/login");
+    res.render("login");
   }
 );
 
 //login route
 app.get("/login", (req, res) => {
-  console.log("loginning")
   res.render("login");
 });
 
@@ -79,19 +76,15 @@ app.post("/login", async (req, res) => {
 
   //creating the token to authenticate users again
   const secretCode = process.env.SECRET;
-  const token = jwt.sign({ name: r[0].name, email: r[0].email }, secretCode,{
-    expiresIn:'2s'
-  });
-  
+  const token = jwt.sign({ name: r[0].name, email: r[0].email }, secretCode);
+
   res.cookie("token", token, {
     secure: false,
     httpOnly: true,
-    maxAge: 10000,
     sameSite: "lax",
     path: "/",
   });
 
-  // res.send(`you are login ${r[0].name}`)
   res.redirect("/dash");
 });
 
@@ -117,5 +110,5 @@ app.post("/log", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port PORT`);
+  console.log(`Server running,....`);
 });

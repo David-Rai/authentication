@@ -79,8 +79,11 @@ app.post("/login", async (req, res) => {
 //dashboard
 app.get('/dash', auth, (req, res) => {
   const data = req.user
+  console.log(data)
 
-  if (!data) res.render("home")
+  if (!data){
+    console.log("no data")
+    res.render("home")}
 
   res.render("dash", { data })
 })

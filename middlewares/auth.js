@@ -1,11 +1,10 @@
 const jwt=require("jsonwebtoken")
 
 const auth = (req, res, next) => {
-  // console.log(req.cookies.token)
     const token = req.cookies.token;
     
     if (!token) {
-        res.render("home")
+    res.redirect("/")
     }
 
     //verifying the token and getting the data
@@ -13,6 +12,7 @@ const auth = (req, res, next) => {
     const data = jwt.verify(token, secretCode)
 
     req.user = data
+
     next()
 
 }
